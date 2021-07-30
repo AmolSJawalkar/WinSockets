@@ -70,6 +70,68 @@ int main()
       return 1;
    }
 
+   fd_set fr, fw, fe;
+   while (true)
+   {
+      FD_ZERO(&fr);
+      FD_ZERO(&fw);
+      FD_ZERO(&fe);
+
+      FD_SET(connectSocket, &fw);
+      FD_SET(connectSocket, &fr);
+      FD_SET(connectSocket, &fe);
+
+
+      timeval tv;
+      tv.tv_sec = 1;
+      tv.tv_usec = 0;
+
+      int nRet = select(connectSocket + 1, &fr, &fw, &fe, &tv);
+      if (nRet > 0)
+      {
+         if (FD_ISSET(connectSocket, &fr))
+         {
+            char buff[4096];
+            auto bytesRecieved = recv(connectSocket, buff, 4096, 0);
+            if (bytesRecieved < 0)
+            {
+               //Client disconnectd
+               std::cout << std::endl << "Closed the connection for Server ";
+            }
+            else
+            {
+               std::cout << std::endl << "Server : " << std::string(buff, bytesRecieved);
+            }
+         }
+
+         if (FD_ISSET(connectSocket, &fw))
+         {
+            int recvbuflen = DEFAULT_BUFLEN;
+            std::string message;
+            std::cout << std::endl << "Me : ";
+            std::getline(std::cin, message);
+            iResult = send(connectSocket, message.c_str(), message.size() + 1, 0);
+            if (iResult == SOCKET_ERROR)
+            {
+               printf("send failed. %ld", WSAGetLastError());
+               closesocket(connectSocket);
+               WSACleanup();
+               return 1;
+            }
+         }
+      }
+      else if (nRet == 0)
+      {
+         //No updates on port
+      }
+      else
+      {
+
+      }
+   }
+
+
+   /*
    //Receive data until server closes the connection
    do 
    {
@@ -101,7 +163,7 @@ int main()
       else
          printf("recv failed: %d\n", WSAGetLastError());
    } while (iResult > 0);
-
+   */
 
    // shutdown the send half of the connection since no more data will be sent
    iResult = shutdown(connectSocket, SD_SEND);

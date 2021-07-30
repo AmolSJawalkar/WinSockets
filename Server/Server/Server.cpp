@@ -56,7 +56,7 @@ void sendWelcomeMessage(SOCKET client, sockaddr details)
    auto sendResult = send(client, message.c_str(), message.size() + 1, 0);
    if (sendResult == SOCKET_ERROR)
    {
-
+      
    }
 }
 
