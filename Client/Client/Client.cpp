@@ -7,7 +7,7 @@
 
 void OnServerMessageReceived(const std::string& message)
 {
-    std::cout << "Server : " << message << std::endl;
+    std::cout << message << std::endl;
 }
 
 int main()
@@ -20,7 +20,6 @@ int main()
     do
     {
         message = "";
-        std::cout << std::endl << "Me : ";
         std::getline(std::cin, message);
         client.Send(message);
     } while (message != "bye");

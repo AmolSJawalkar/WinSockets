@@ -29,6 +29,11 @@ TCPClient::TCPClient() :
 	//Good to go
 }
 
+TCPClient::~TCPClient()
+{
+	this->Close();
+}
+
 bool TCPClient::Connect(const std::string& ipAddress, const std::string& port)
 {
 	addrinfo* result, * ptr, hints;

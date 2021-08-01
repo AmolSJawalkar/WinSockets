@@ -13,6 +13,7 @@ class TCPClient
 	void receievedThread();
 public:
 	TCPClient();
+	~TCPClient();
 	bool Connect(const std::string& ipAddress, const std::string& port);
 	void Send(const std::string& message);
 	void SetServerMessageDelegate(std::function<void(const std::string&)> delegator);
