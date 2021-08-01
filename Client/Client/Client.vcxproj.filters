@@ -26,5 +26,8 @@
     <ClInclude Include="TCPClient.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="ProducerConsumerQueue.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
