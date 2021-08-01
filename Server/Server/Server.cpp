@@ -2,13 +2,13 @@
 //
 #include <iostream>
 #include <string>
-#include "TCPServer.h"
+#include "ServerProcess.h"
 
 int main()
 {
-	TCPServer server;
-	server.start("27015");
-	server.Run();
+	ServerProcess process;
+	process.Start();
+
    return 0;
 }
 

@@ -9,6 +9,7 @@
 #include <iphlpapi.h>
 #include <iostream>
 #include "TCPServer.h"
+#include "TCPClients.h"
 
 #pragma comment(lib, "Ws2_32.lib")
 
@@ -40,7 +41,7 @@ void TCPServer::Run()
         int nRet = select(_listeningSocket + 1, &_fr, &_fw, &_fe, &tv);
         if (nRet > 0)
         {
-            ProcessNewConnection(_listeningSocket);
+            processNewConnection(_listeningSocket);
         }
         else if (nRet == 0)
         {
@@ -48,84 +49,31 @@ void TCPServer::Run()
         }
         else
         {
-
+            std::cout << "Select failed" << std::endl;
         }
     }
 }
 
-bool TCPServer::addToClients(SOCKET newSocket)
-{
-    for (int index = 0; index < MAX_CLIENTS; index++)
-    {
-        if (_clients[index] == 0)
-        {
-            _clients[index] = newSocket;
-            return true;
-        }
-    }
 
-    return false;
-}
-
-void TCPServer::removeFromClients(SOCKET oldSocket)
-{
-    for (int index = 0; index < MAX_CLIENTS; index++)
-    {
-        if (_clients[index] == oldSocket)
-        {
-            _clients[index] = 0;
-            break;
-        }
-    }
-}
-
-void TCPServer::sendWelcomeMessage(SOCKET client, sockaddr details)
-{
-    std::string message = "Welcome. You got connected to server.";
-    auto sendResult = send(client, message.c_str(), message.size() + 1, 0);
-    if (sendResult == SOCKET_ERROR)
-    {
-
-    }
-}
-
-void TCPServer::broadcastMessage(SOCKET from, const std::string& message)
-{
-    for (int index = 0; index < MAX_CLIENTS; index++)
-    {
-        auto clientID = _clients[index];
-        if (clientID != 0 && clientID != from)
-        {
-            std::string response = std::to_string(clientID) + " : " + message;
-            auto sendResult = send(clientID, response.c_str(), response.size() + 1, 0);
-            if (sendResult == SOCKET_ERROR)
-            {
-
-            }
-        }
-    }
-}
-
-void TCPServer::ProcesNewMessage(SOCKET clientSocket)
+void TCPServer::procesNewMessage(SOCKET clientSocket)
 {
     char buff[4096];
     auto bytesRecieved = recv(clientSocket, buff, 4096, 0);
     if (bytesRecieved < 0)
     {
         //Client disconnectd
-        removeFromClients(clientSocket);
-        std::cout << std::endl << "Closed the connection for Client " << clientSocket;
+        _clients.remove(clientSocket);
+        if (_eventshandler != nullptr)
+            _eventshandler->OnClientDisconnected(clientSocket);
     }
     else
     {
-        std::string message(buff, bytesRecieved);
-        std::cout << std::endl << "Client " << clientSocket << " : " << message;
-        broadcastMessage(clientSocket, message);
+        if (_eventshandler != nullptr)
+            _eventshandler->OnNewMessageFromClient(clientSocket, std::string(buff, bytesRecieved));
     }
-
 }
 
-void TCPServer::ProcessNewConnection(SOCKET listeningSocket)
+void TCPServer::processNewConnection(SOCKET listeningSocket)
 {
     //Check for read connections
     if (FD_ISSET(listeningSocket, &_fr))
@@ -141,9 +89,9 @@ void TCPServer::ProcessNewConnection(SOCKET listeningSocket)
             return;
         }
 
-        addToClients(clientSocket);
-        std::cout << std::endl << "New Client connect. ID : " << clientSocket;;
-        sendWelcomeMessage(clientSocket, clientDetails);
+        _clients.add(clientSocket);
+        if (_eventshandler != nullptr)
+            _eventshandler->OnNewClientConnected(clientSocket);
     }
     else
     {
@@ -151,7 +99,7 @@ void TCPServer::ProcessNewConnection(SOCKET listeningSocket)
         {
             if (FD_ISSET(_clients[index], &_fr))
             {
-                ProcesNewMessage(_clients[index]);
+                procesNewMessage(_clients[index]);
             }
         }
 
@@ -159,7 +107,8 @@ void TCPServer::ProcessNewConnection(SOCKET listeningSocket)
 }
 
 TCPServer::TCPServer():
-    _listeningSocket(INVALID_SOCKET)
+    _listeningSocket(INVALID_SOCKET),
+    _eventshandler(nullptr)
 {
 	WSAData wsaData;
 	int iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
@@ -169,15 +118,28 @@ TCPServer::TCPServer():
 	}
 
 	//got to go
-    for (size_t i = 0; i < MAX_CLIENTS; i++)
+}
+
+bool TCPServer::SendMessageTo(SOCKET client, const std::string& message)
+{
+    std::string response = std::to_string(client) + " : " + message;
+    auto sendResult = send(client, response.c_str(), response.size() + 1, 0);
+    if (sendResult == SOCKET_ERROR)
     {
-        _clients[i] = 0;
+        return false;
     }
+    return true;
 }
 
 TCPServer::~TCPServer()
 {
     this->Close();
+    _eventshandler = nullptr;
+}
+
+TCPClients& TCPServer::Clients()
+{
+    return _clients;
 }
 
 bool TCPServer::start(const std::string& port)
@@ -246,8 +208,9 @@ bool TCPServer::start(const std::string& port)
 void TCPServer::Close()
 {
     WSACleanup();
-    for (size_t i = 0; i < MAX_CLIENTS; i++)
-    {
-        _clients[i] = INVALID_SOCKET;
-    }
+}
+
+void TCPServer::SetEventsHanlder(TCPServerEvents* handler)
+{
+    _eventshandler = handler;
 }
